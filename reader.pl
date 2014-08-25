@@ -6,7 +6,7 @@ use IO::Handle;
 use LWP::Simple;
 use Data::Dumper;
 $|++;
-my $version = "v0.0002a";
+my $version = "v0.01";
 my $tgpath = "telegram";
 my $startuptime = localtime(time());
 `touch running.bot`;
@@ -65,13 +65,60 @@ READ: while(my $data = <$rh>){
     my $msg = disect_msg($data);
     if($data =~ /vomitchan/i && !$busy && $data !~ /send_photo/){
       $busy = 1;
-      print "vomitchan detected, printing pic";
-      $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot/vomitchan2.jpg") or die $!;
+      print "vomitchan detected, printing pic\n";
+      $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/vomitchan2.jpg") or die $!;
       $busy = 0;
     }
     if($data =~ /FF*?UU*?/ && $data !~ /send_photo/){
       print "rage detected, printing pic";
-      $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot/rage.jpg") or die $!;
+      $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/rage.jpg") or die $!;
+    }
+    if(($data =~ /qt3.14/ || $data =~ /anna/i) && $data !~ /send_photo/){
+      print "anna detected, printing pic";
+      my $basepath = "/data/3tb/pictures/annakendrick/";
+      opendir(my $dh,"/data/3tb/pictures/annakendrick") || die("can't open annakendrick man! $!");
+      my @dir = readdir($dh);
+      print "anna dir is".scalar(@dir)."\n";
+      my $rand = rand(scalar(@dir));
+      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
+      #$wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/img/1408930565.jpg") or die $!;
+    }
+    if($data =~ /emma/i && $data !~ /send_photo/){
+      print "emma detected, printing pic";
+      my $basepath = "/data/3tb/pictures/emmastone/";
+      opendir(my $dh,"/data/3tb/pictures/emmastone") || die("can't open emma man! $!");
+      my @dir = readdir($dh);
+      print "emma dir is".scalar(@dir)."\n";
+      my $rand = rand(scalar(@dir));
+      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
+      #$wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/emmastone.jpg") or die $!;
+    }
+    if($data =~ /zooey/i && $data !~ /send_photo/){
+      print "zooey detected, printing pic";
+      my $basepath = "/data/3tb/pictures/zooey/";
+      opendir(my $dh,"/data/3tb/pictures/zooey") || die("can't open zooey man! $!");
+      my @dir = readdir($dh);
+      print "zooey dir is".scalar(@dir)."\n";
+      my $rand = rand(scalar(@dir));
+      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
+    }
+    if($data =~ /reaction/i && $data !~ /send_photo/){
+      print "reaction detected, printing pic";
+      my $basepath = "/data/3tb/pictures/reaction/";
+      opendir(my $dh,"/data/3tb/pictures/reaction") || die("can't open reaction man! $!");
+      my @dir = readdir($dh);
+      print "reaction dir is".scalar(@dir)."\n";
+      my $rand = rand(scalar(@dir));
+      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
+    }
+    if($data =~ /funny/i && $data !~ /send_photo/){
+      print "funny detected, printing pic";
+      my $basepath = "/data/3tb/pictures/funny/";
+      opendir(my $dh,"/data/3tb/pictures/funny") || die("can't open funny man! $!");
+      my @dir = readdir($dh);
+      print "funny dir is".scalar(@dir)."\n";
+      my $rand = rand(scalar(@dir));
+      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
     }
     if($data =~ /!ascii(.*?)normal/i){
       my $tring = $1;
@@ -118,12 +165,55 @@ READ: while(my $data = <$rh>){
       }
     }
     if($data =~ /!time/i){
-      $wh->say("msg $msg->{receiver} BOT: ".time()) or die $!;
+      my $tijd = time();
+      my $localtijd = localtime(time);
+      $wh->say("msg $msg->{receiver} BOT: $tijd ($localtijd") or die $!;
+    }
+    if($data =~ /<3/i){
+      $wh->say("msg $msg->{receiver} BOT: Awwh... $msg->{sender} i <3 u 2. Happy day!") or die $!;
+    }
+    if($data =~ /!me/i){
+      $wh->say("msg $msg->{receiver} BOT: Ja dat is dus $msg->{sender} die dat zegt.") or die $!;
     }
     if($data =~ /!currentmusic/i){
       my $music = `mpc status | head -1`;
       $music =~ s/\n/ /gm;
-      $wh->say("msg $msg->{receiver} BOT: Host is currently listening to $music") or die $!;
+      #$wh->say("msg $msg->{receiver} BOT: Host is currently listening to $music") or die $!;
+      $music =~ s/\(/ /gm;
+      $music =~ s/\)/ /gm;
+      my $musicyt = $music;
+      $musicyt =~ s/ /\%20/g;
+      my $link = "http://www.youtube.com/results?search_query=$musicyt";
+      $link =~ s/%20$//i;
+      $link =~ s/\'//i;
+      print "trying to get link : $link \n";
+      my $yt = `curl -L $link`  or die("can;t do it: $link $!");
+      $yt =~ /\=\"\/watch\?(.*?)"/im;
+      my $tmp = $1;
+      $tmp =~ s/^v=//i;
+      my $ytlink = "https://youtu.be/$tmp";
+      $wh->say("msg $msg->{receiver} BOT: Host is currently listening to $music: $ytlink (id : $tmp)") or die $!;
+    }
+    if($data =~ /!yt/i){
+      if($data =~ /!yt\s(.*?)normal/i){
+        my $music = $1;
+        $music =~ s/\n/ /gm;
+        $music =~ s/\(/ /gm;
+        $music =~ s/\)/ /gm;
+        my $musicyt = $music;
+        $musicyt =~ s/ /\%20/g;
+        my $link = "http://www.youtube.com/results?search_query=$musicyt";
+        $link =~ s/%20$//i;
+        print "trying to get link : $link \n";
+        my $yt = `curl -L $link`  or die("can;t do it: $link $!");
+        $yt =~ /\=\"\/watch\?(.*?)"/im;
+        my $tmp = $1;
+        $tmp =~ s/^v=//i;
+        my $ytlink = "https://youtu.be/$tmp";
+        $wh->say("msg $msg->{receiver} BOT: Best result for ($music) $ytlink (id : $tmp)") or die $!;
+      }else{
+        $wh->say("msg $msg->{receiver} BOT: no search arguments given..") or die $!;
+      }
     }
     if($data =~ /imgur/i){
       print "imgur link detected\n";
@@ -140,14 +230,14 @@ READ: while(my $data = <$rh>){
           $wh->say("msg $msg->{receiver} BOT: oke imgor link $link, crawling for imglink $imglink.$imgext") or die $!;
           $time = time;
           `wget $imglink.$imgext -O img/$time.$imgext`;
-          $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot/img/$time.$imgext") or die $!;
+          $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/img/$time.$imgext") or die $!;
         }elsif($data =~ /(http:\/\/i.imgur.com\/.*?)\.(.*?)normal/i){
           my $imgpath = $1;
           my $ext = $2;
           $wh->say("msg $msg->{receiver} BOT: Direct image, getting image $imgpath.$ext") or die $!;
           $time = time;
           `wget $imgpath.$ext -O img/$time.$ext`;
-          $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot/img/$time.$ext") or die $!;
+          $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/img/$time.$ext") or die $!;
         }
         else{
           $wh->say("msg $msg->{receiver} BOT: unknown format") or die $!;
@@ -174,13 +264,16 @@ READ: while(my $data = <$rh>){
       $wh->say("msg $msg->{receiver} BOT: $msgcnt") or die $!;
       print Dumper $msgcount;
     }
-    if($data =~ /!disectmsg/i){
+    if($data =~ /!msgdisect/i || $data =~ /!disectmsg/i){
       $msgdis = Dumper $msg;
       $msgdis =~ s/\n/ /gm;
       $wh->say("msg $msg->{receiver} BOT: $msgdis") or die $!;
     }
     if($data =~ /!info/i){
       $wh->say("msg $msg->{receiver} BOT: meer informatie op http://02.sudodev.net/telegrambot/") or die $!;
+    }
+    if($data =~ /!ideas/i){
+      $wh->say("msg $msg->{receiver} BOT: Welcome back message if gone sooo long (threshold). ideaboard, dbase, ok i'm tired now") or die $!;
     }
   }
   if($data =~ /!startbot/i){
@@ -200,6 +293,7 @@ $wh->close or die "pipe execited with $?";
 
 sub parse_msg{
   my $msg = shift;
+  $msg =~ s/'/ /g;
   for my $color (keys $colors){
     #print "c: $colors->{$color}| $color\n";
     $msg =~ s/\Q$colors->{$color}\E/$color/g;
@@ -221,6 +315,7 @@ sub parse_msg{
 }
 sub disect_msg{
   my $msg = shift;
+  $msg =~ s/'/ /g;
   $return = {};
   if($msg =~ /normal magenta(.*?)normal redredb(.*?)rednormal.*? >>> (.*)normal/){
     $return = {

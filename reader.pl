@@ -63,63 +63,66 @@ READ: while(my $data = <$rh>){
   print $data;
   if($started && $data !~ /BOT/){
     my $msg = disect_msg($data);
+    print $msg->{receiver};
+    print Dumper $msg;
     if($data =~ /vomitchan/i && !$busy && $data !~ /send_photo/){
       $busy = 1;
       print "vomitchan detected, printing pic\n";
       $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/vomitchan2.jpg") or die $!;
       $busy = 0;
     }
-    if($data =~ /FF*?UU*?/ && $data !~ /send_photo/){
+    if($data =~ /FF+?UU+?/ && $data !~ /send_photo/){
       print "rage detected, printing pic";
       $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/rage.jpg") or die $!;
     }
-    if(($data =~ /qt3.14/ || $data =~ /anna/i) && $data !~ /send_photo/){
-      print "anna detected, printing pic";
-      my $basepath = "/data/3tb/pictures/annakendrick/";
-      opendir(my $dh,"/data/3tb/pictures/annakendrick") || die("can't open annakendrick man! $!");
-      my @dir = readdir($dh);
-      print "anna dir is".scalar(@dir)."\n";
-      my $rand = rand(scalar(@dir));
-      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
-      #$wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/img/1408930565.jpg") or die $!;
+    my $picturestars = {
+      "anna"=>{"path"=>"/data/3tb/pictures/annakendrick/","terms"=>["anna","kendrick","qt3.14"]},
+      "emma"=>{"path"=>"/data/3tb/pictures/emmastone/","terms"=>["emma"]},
+      "zooey"=>{"path"=>"/data/3tb/pictures/zooey/","terms"=>["zooey"]},
+      "sarah"=>{"path"=>"/data/3tb/pictures/sarahhyland/","terms"=>["sarah"]},
+      "clara"=>{"path"=>"/data/3tb/pictures/claraoswald/","terms"=>["clara"]},
+      "nathalie"=>{"path"=>"/data/3tb/pictures/natalieportman/","terms"=>["natalie","jew"]},
+      "olivia"=>{"path"=>"/data/3tb/pictures/oliviawilde/","terms"=>["olivia"]},
+      "alison"=>{"path"=>"/data/3tb/pictures/alisonbrie/","terms"=>["alison"]},
+      "jane"=>{"path"=>"/data/3tb/pictures/janelevy/","terms"=>["jane"]},
+      "yvonne"=>{"path"=>"/data/3tb/pictures/uitchuck/","terms"=>["yvonne"]},
+      "karengillian"=>{"path"=>"/data/3tb/pictures/karengillian/","terms"=>["karengillian"]},
+      "hayden"=>{"path"=>"/data/3tb/pictures/hayden/","terms"=>["hayden"]},
+      "chloe"=>{"path"=>"/data/3tb/pictures/chloe/","terms"=>["chloe"]},
+    };
+
+    for my $picstar (keys $picturestars){
+      my @terms = @{$picturestars->{$picstar}->{terms}};
+      my $path = $picturestars->{$picstar}->{path};
+      my $foundterm = 0;
+      #print "searching keywords: ";
+      #print join(", ",@terms);
+      #print "\npath: $path\n";
+      if($data !~ /send_photo/){
+        for my $term (@terms){
+          if($data =~ /$term/i){
+            $foundterm = 1;
+          }
+        }
+      }
+      if($foundterm){
+        print "$picstar detected, printing pic\n";
+        opendir(my $dh,$path) || die("can't open $path! $!");
+        my @dir = readdir($dh);
+        print "dir is".scalar(@dir)."\n";
+        my $rand = rand(scalar(@dir));
+        my $file = $dir[int($rand)];
+        while($file =~ /^\.$/ || $file =~ /^\.\.$/){
+          #while($file =~ /^\.$/ || $file == ".."){ #werkt anders, even uitzoeken waarom
+          print "found . ($file) rand:$rand retrying...\n";
+          $rand = rand(scalar(@dir));
+          $file = $dir[int($rand)];
+        }
+        print "Sending pic: $file ($rand)\n";
+        $wh->say("send_photo $msg->{receiver} ".$path.$dir[int($rand)]) or die $!;
+      }
     }
-    if($data =~ /emma/i && $data !~ /send_photo/){
-      print "emma detected, printing pic";
-      my $basepath = "/data/3tb/pictures/emmastone/";
-      opendir(my $dh,"/data/3tb/pictures/emmastone") || die("can't open emma man! $!");
-      my @dir = readdir($dh);
-      print "emma dir is".scalar(@dir)."\n";
-      my $rand = rand(scalar(@dir));
-      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
-      #$wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/emmastone.jpg") or die $!;
-    }
-    if($data =~ /zooey/i && $data !~ /send_photo/){
-      print "zooey detected, printing pic";
-      my $basepath = "/data/3tb/pictures/zooey/";
-      opendir(my $dh,"/data/3tb/pictures/zooey") || die("can't open zooey man! $!");
-      my @dir = readdir($dh);
-      print "zooey dir is".scalar(@dir)."\n";
-      my $rand = rand(scalar(@dir));
-      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
-    }
-    if($data =~ /reaction/i && $data !~ /send_photo/){
-      print "reaction detected, printing pic";
-      my $basepath = "/data/3tb/pictures/reaction/";
-      opendir(my $dh,"/data/3tb/pictures/reaction") || die("can't open reaction man! $!");
-      my @dir = readdir($dh);
-      print "reaction dir is".scalar(@dir)."\n";
-      my $rand = rand(scalar(@dir));
-      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
-    }
-    if($data =~ /funny/i && $data !~ /send_photo/){
-      print "funny detected, printing pic";
-      my $basepath = "/data/3tb/pictures/funny/";
-      opendir(my $dh,"/data/3tb/pictures/funny") || die("can't open funny man! $!");
-      my @dir = readdir($dh);
-      print "funny dir is".scalar(@dir)."\n";
-      my $rand = rand(scalar(@dir));
-      $wh->say("send_photo $msg->{receiver} ".$basepath.$dir[int($rand)]) or die $!;
-    }
+
     if($data =~ /!ascii(.*?)normal/i){
       my $tring = $1;
       $wh->say("msg $msg->{receiver} BOT: $1 => $tring") or die $!;
@@ -244,7 +247,7 @@ READ: while(my $data = <$rh>){
         }
       }
     }
-    if($data =~ /test/i){
+    if($data =~ /!test/i){
       print "oke dit is dus een test\n";
       $wh->say("msg $msg->{receiver} BOT: CreeperBot $version") or die $!;
     }
@@ -261,7 +264,14 @@ READ: while(my $data = <$rh>){
       print "Printing messagecount";
       my $msgcnt = Dumper $msgcount;
       $msgcnt =~ s/\n/ /gm;
-      $wh->say("msg $msg->{receiver} BOT: $msgcnt") or die $!;
+      #$wh->say("msg $msg->{receiver} BOT: $msgcnt") or die $!;
+      my $tring = "";
+      if(defined($msgcount->{$msg->{group}})){
+        for my $user (keys $msgcount->{$msg->{group}}){
+          $tring .= "$user : ".$msgcount->{$msg->{group}}->{$user}." ,";
+        }
+      }
+      $wh->say("msg $msg->{receiver} BOT: $tring") or die $!;
       print Dumper $msgcount;
     }
     if($data =~ /!msgdisect/i || $data =~ /!disectmsg/i){
@@ -299,13 +309,14 @@ sub parse_msg{
     $msg =~ s/\Q$colors->{$color}\E/$color/g;
   }
   #print "parse_msg count $cnt\n";
-  if($msg =~ /^User redredb(.*?)redyellow/){
+  if($msg =~ /^User redr?e?d?b?(.*?)yellow/){
     my $temp = $1;
     $temp =~ s/ /_/g;
+    $temp =~ s/red$//;
     print "!! User $temp found \n";
     push(@{$userlist->{users}},$temp);
   }
-  if($msg =~ /^Chat magenta(.*?)yellow/){
+  if($msg =~ /Chat magenta(.*?)yellow/){
     my $temp = $1;
     $temp =~ s/ /_/g;
     print "!! Chat $temp found \n";
@@ -317,13 +328,14 @@ sub disect_msg{
   my $msg = shift;
   $msg =~ s/'/ /g;
   $return = {};
-  if($msg =~ /normal magenta(.*?)normal redredb(.*?)rednormal.*? >>> (.*)normal/){
+  if($msg =~ /normal magenta(.*?)normal redr?e?d?b?(.*?)normal.*? >>> (.*)normal/){
     $return = {
       "group"=>$1,
       "sender"=>$2,
       "message"=>$3,
       "receiver"=>$1,
     };
+    $return->{group} =~ s/red$//;
     if(!defined($msgcount->{$return->{group}})){
       $msgcount->{$return->{group}} = {};
       print "!! nieuwe groep count\n";
@@ -334,19 +346,23 @@ sub disect_msg{
     }
     $msgcount->{$return->{group}}->{$return->{sender}}++;
   }
-  elsif($msg =~ /normal redredb(.*?)rednormal.*? <<< (.*?)normal/){
+  elsif($msg =~ /normal redr?e?d?b?(.*?)r?e?d?normal.*? <<< (.*?)normal/){
     $return = {
       "to"=>$1,
       "message"=>$2,
       "receiver"=>$1,
     };
+    $return->{to} =~ s/red$//;
+    $return->{receiver} =~ s/red$//;
   }
-  elsif($msg =~ /normal redredb(.*?)rednormal.*? >>> (.*?)normal/){
+  elsif($msg =~ /normal redr?e?d?b?(.*?)r?e?d?normal.*? >>> (.*?)normal/){
     $return = {
       "from"=>$1,
       "message"=>$2,
       "receiver"=>$1,
     };
+    $return->{from} =~ s/red$//;
+    $return->{receiver} =~ s/red$//;
   }
   if(defined($return->{receiver})){
     $return->{receiver} =~ s/ /_/g;

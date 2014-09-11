@@ -5,8 +5,29 @@ use IPC::Open2;
 use IO::Handle;
 use LWP::Simple;
 use Data::Dumper;
+use JSON;
+use XML::Simple;
+use DBI;
 $|++;
-my $version = "v0.01";
+my $version = "v0.03";
+
+#TODO greymagenta[18:31] grey magentaTestgrey redredbUserredgrey changed title to Test2
+#rekening houden met groupnaam verandering
+
+my $xml = new XML::Simple;
+my $xmlparse = $xml->XMLin("config.xml");
+my %db;
+$db{db} = $xmlparse->{database}{dbname};
+$db{host} = $xmlparse->{database}{host};
+$db{user} = $xmlparse->{database}{user};
+$db{pass} = $xmlparse->{database}{password};
+
+my $dbh = DBI->connect("DBI:mysql:database=$db{db};host=$db{host}","$db{user}", "$db{pass}", {'RaiseError' => 1}) or die "No connection was made with the mysql: $db{db} database";
+          
+my $basepath = get_config("basepath");
+print $basepath;
+
+my $json = JSON->new->allow_nonref;
 my $tgpath = "telegram";
 my $startuptime = localtime(time());
 `touch running.bot`;
@@ -40,40 +61,34 @@ my $userlist= {"groups"=>[],
             "users"=>[]};
 my $busy = 0;
 my $msgcount = {};
-
 my $nerdlist = {};
 
-$nerdlist->{nightowl}->{tobias} = 100;
-$nerdlist->{nightowl}->{leo} = 80;
-$nerdlist->{nightowl}->{anton} = -20;
-$nerdlist->{nightowl}->{luigi} = 20;
 
-$nerdlist->{nerdcred}->{tobias} = 100;
-$nerdlist->{nerdcred}->{leo} = 102;
-$nerdlist->{nerdcred}->{anton} = 50;
-$nerdlist->{nerdcred}->{luigi} = 20;
+my $sth_preferences = $dbh->prepare("select * from stats left join statkinds on stats.statkindid=statkinds.id left join persons on persons.id=stats.personid");
+$sth_preferences->execute();
+while(my $preference = $sth_preferences->fetchrow_hashref() ){
+  print Dumper $preference;
+}
 
-$nerdlist->{awesomeness}->{tobias} = 100;
-$nerdlist->{awesomeness}->{leo} = 100;
-$nerdlist->{awesomeness}->{anton} = 100;
-$nerdlist->{awesomeness}->{luigi} = 100;
-          
 READ: while(my $data = <$rh>){
   $data = parse_msg($data);
   print $data;
   if($started && $data !~ /BOT/){
     my $msg = disect_msg($data);
     print $msg->{receiver};
-    print Dumper $msg;
+    if($msg->{group}){ #gewoon omdat
+      $wh->say("mark_read $msg->{receiver}") or die $!;
+    }
+    #print Dumper $msg;
     if($data =~ /vomitchan/i && !$busy && $data !~ /send_photo/){
       $busy = 1;
       print "vomitchan detected, printing pic\n";
-      $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/vomitchan2.jpg") or die $!;
+      $wh->say("send_photo $msg->{receiver} /opt/repos/telegrambot.ontw/vomitchan2.jpg") or die $!;
       $busy = 0;
     }
     if($data =~ /FF+?UU+?/ && $data !~ /send_photo/){
       print "rage detected, printing pic";
-      $wh->say("send_photo $msg->{receiver} /home/tobias/apps/telegrambot.ontw/rage.jpg") or die $!;
+      $wh->say("send_photo $msg->{receiver} /opt/repos/telegrambot.ontw/rage.jpg") or die $!;
     }
     my $picturestars = {
       "anna"=>{"path"=>"/data/3tb/pictures/annakendrick/","terms"=>["anna","kendrick","qt3.14"]},
@@ -86,9 +101,10 @@ READ: while(my $data = <$rh>){
       "alison"=>{"path"=>"/data/3tb/pictures/alisonbrie/","terms"=>["alison"]},
       "jane"=>{"path"=>"/data/3tb/pictures/janelevy/","terms"=>["jane"]},
       "yvonne"=>{"path"=>"/data/3tb/pictures/uitchuck/","terms"=>["yvonne"]},
-      "karengillian"=>{"path"=>"/data/3tb/pictures/karengillian/","terms"=>["karengillian"]},
+      "karengillian"=>{"path"=>"/data/3tb/pictures/karengillian/","terms"=>["karen"]},
       "hayden"=>{"path"=>"/data/3tb/pictures/hayden/","terms"=>["hayden"]},
       "chloe"=>{"path"=>"/data/3tb/pictures/chloe/","terms"=>["chloe"]},
+      "gemma"=>{"path"=>"/data/3tb/pictures/gemma/","terms"=>["gemma"]},
     };
 
     for my $picstar (keys $picturestars){
@@ -100,7 +116,7 @@ READ: while(my $data = <$rh>){
       #print "\npath: $path\n";
       if($data !~ /send_photo/){
         for my $term (@terms){
-          if($data =~ /$term/i){
+          if($data =~ /\b$term/i){
             $foundterm = 1;
           }
         }
@@ -121,6 +137,10 @@ READ: while(my $data = <$rh>){
         print "Sending pic: $file ($rand)\n";
         $wh->say("send_photo $msg->{receiver} ".$path.$dir[int($rand)]) or die $!;
       }
+    }
+
+    if($data =~ /!chatinfo/i){ #TODO send chat_info $msg->{receiver} wait for result and parse and send
+
     }
 
     if($data =~ /!ascii(.*?)normal/i){
@@ -158,12 +178,41 @@ READ: while(my $data = <$rh>){
       my $stats = Dumper $nerdlist;
       $stats =~ s/\n/ /gm;
       $stats =~ s/\$VAR1 = / /gm;
-      $wh->say("msg $msg->{receiver} BOT: stats since $startuptime:") or die $!;
-      sleep(0.1);
+      my $randfile = time."-".rand(1000);
+      barf($randfile,"BOT: stats since $msgstart\n");
       for my $stat (sort keys %$nerdlist){
-        for my $value (sort keys %$nerdlist{$stat}){
-          $wh->say("msg $msg->{receiver} BOT: $stat $value => $nerdlist->{$stat}->{$value}") or die $!;
-          sleep(0.5);
+        print "$stat\n";
+        #foreach my $value (sort { $nerdlist->{$b} cmp $nerdlist->{$a} } keys %{$nerdlist{$stat}}) {
+          for my $value (sort keys %$nerdlist{$stat}){
+          print "$stat $value\n";
+          barf($randfile,"$stat $value => $nerdlist->{$stat}->{$value}\n");
+        }
+      }
+      $wh->say("send_text $msg->{receiver} $randfile") or die $!;
+    }
+    if($data =~ /!ytdl/){ 
+      #download youtubes urls die zijn meegegeven
+    }
+    if($data =~ /!urban/i || $data =~ /!ud/i){
+      $urbandictscraper = "https://urbanscraper.herokuapp.com/";
+      if($data =~ /!ud\s(.*?)normal/i ||$data =~ /!urban\s(.*?)normal/i){
+        my $searchstring = $1;
+        $searchstring =~ s/\n//gm;
+        $searchstring =~ s/\(//gm;
+        $searchstring =~ s/\)//gm;
+        $searchstring =~ s/ /%20/gm;
+        my $link = $urbandictscraper."define/$1";
+        my $scraped = `curl -L $link`  or die("can;t do it: $link $!");
+        print $link."\n";
+        print $scraped;
+        if($scraped){
+          my $definition = $json->decode($scraped);
+          if($definition->{definition}){
+            $wh->say("msg $msg->{receiver} BOT: $definition->{definition}") or die $!;
+          }else{
+            $wh->say("msg $msg->{receiver} BOT: No results found.") or die $!;
+          }
+        }else{
         }
       }
     }
@@ -218,7 +267,7 @@ READ: while(my $data = <$rh>){
         $wh->say("msg $msg->{receiver} BOT: no search arguments given..") or die $!;
       }
     }
-    if($data =~ /imgur/i){
+    if($data =~ /http\S+imgur/i){
       print "imgur link detected\n";
       if($data =~ /https/i){
         $wh->say("msg $msg->{receiver} BOT: httpslink, can't crawl") or die $!;
@@ -247,9 +296,37 @@ READ: while(my $data = <$rh>){
         }
       }
     }
+    if($data =~ /!wotd/i){
+      my $wotd = get_wotd_ub();
+      print Dumper %wotd;
+      my $randfile = time."-".rand(1000);
+      barf($randfile,"BOT: $wotd->{word} : $wotd->{meaning}\n");
+      $wh->say("send_text $msg->{receiver} $randfile") or die $!;
+    }
     if($data =~ /!test/i){
       print "oke dit is dus een test\n";
       $wh->say("msg $msg->{receiver} BOT: CreeperBot $version") or die $!;
+    }
+    if($data =~ /!download/i && 0){
+      if($data =~ /!download\s(\S*?)normal/i){
+        my $searchterm = $1;
+        `perl imgurcrawler.pl $searchterm`;
+        sleep(5);
+        my $path = "/opt/repos/telegrambot.ontw/crawl/$searchterm";
+        opendir(my $dh,$path) || die("can't open $path! $!");
+        my @dir = readdir($dh);
+        print "dir is".scalar(@dir)."\n";
+        my $rand = rand(scalar(@dir));
+        my $file = $dir[int($rand)];
+        while($file =~ /^\.$/ || $file =~ /^\.\.$/){
+          #while($file =~ /^\.$/ || $file == ".."){ #werkt anders, even uitzoeken waarom
+          print "found . ($file) rand:$rand retrying...\n";
+          $rand = rand(scalar(@dir));
+          $file = $dir[int($rand)];
+        }
+        print "Sending pic: $file ($rand)\n";
+        $wh->say("send_photo $msg->{receiver} ".$path.$dir[int($rand)]) or die $!;
+      }
     }
     if($data =~ /!stopbot/i){
       print "Oke stopping to listen...\n";
@@ -262,16 +339,22 @@ READ: while(my $data = <$rh>){
     }
     if($data =~ /!msgcount/i){
       print "Printing messagecount";
-      my $msgcnt = Dumper $msgcount;
-      $msgcnt =~ s/\n/ /gm;
+      my $randfile = time."-".rand(1000);
+      #my $msgcnt = Dumper $msgcount;
+      #$msgcnt =~ s/\n/ /gm;
       #$wh->say("msg $msg->{receiver} BOT: $msgcnt") or die $!;
       my $tring = "";
       if(defined($msgcount->{$msg->{group}})){
-        for my $user (keys $msgcount->{$msg->{group}}){
-          $tring .= "$user : ".$msgcount->{$msg->{group}}->{$user}." ,";
+        barf($randfile,"BOT: msgcount since $startuptime\n");
+        my %hash = %{$msgcount->{$msg->{group}}};
+        foreach my $user (sort { $hash{$b} <=> $hash{$a} } keys %hash) {
+          #for my $user (sort keys $msgcount->{$msg->{group}}){
+           barf($randfile, "$user : ".$msgcount->{$msg->{group}}->{$user}."\n");
         }
       }
-      $wh->say("msg $msg->{receiver} BOT: $tring") or die $!;
+      $wh->say("send_text $msg->{receiver} $randfile") or die $!;
+      sleep(1);
+      #`rm $randfile`;
       print Dumper $msgcount;
     }
     if($data =~ /!msgdisect/i || $data =~ /!disectmsg/i){
@@ -328,7 +411,7 @@ sub disect_msg{
   my $msg = shift;
   $msg =~ s/'/ /g;
   $return = {};
-  if($msg =~ /normal magenta(.*?)normal redr?e?d?b?(.*?)normal.*? >>> (.*)normal/){
+  if($msg =~ /normal magenta(.*?)normal redr?e?d?b?(.*?)r?e?d?normal.*? >>> (.*)normal/){
     $return = {
       "group"=>$1,
       "sender"=>$2,
@@ -368,4 +451,83 @@ sub disect_msg{
     $return->{receiver} =~ s/ /_/g;
   }
   return $return;
+}
+
+
+sub barf {
+  my( $file, $content ) = @_;
+  my $fh;
+  open($fh, ">>$file") or die $!;
+  print $fh $content;
+  close($fh);
+}
+
+sub get_config{
+  my $cname = shift;
+  my $cgroup = shift || 0;
+  my $sth_config = $dbh->prepare("select config.cvalue from config where cname=? and cgroup=?");
+  $sth_config->execute($cname,$cgroup);
+  while(my $preference = $sth_config->fetchrow_hashref() ){
+    print Dumper $preference;
+    return $preference->{cvalue};
+  }
+}
+
+sub get_pic_dump{
+  my $sth_pd = $dbh->prepare("select folders.folder, keywords.keyword from picdump ");
+}
+
+sub imgurcrawl{
+  my $crawlterm = shift;
+  my $imgurlink = "http://imgur.com/r/$crawlterm";
+  my $page = `curl $imgurlink`;
+  my $piclist = {};
+  my $count = 0;
+  my @pictures;
+  `mkdir -p $basepath/crawl/$crawlterm`;
+  if($page){
+    print $page;
+    while($page =~ /div.*?class="post"(.*?)\/div/gs){
+      $count++;
+      my $picdiv = $1;
+      #print $picdiv;
+      if($picdiv =~ /\<img.*?src="(.*?)".*?\>/is){
+        my $piclink = $1;
+        $piclink =~ /(.*)\/(.*)\.(.*)$/;
+        my $pic = $1;
+        my $picname = $2;
+        my $ext = $3;
+        $picname =~ s/b$//;
+        print $piclink." => $pic/$picname.$ext\n";
+        my $picurl = "http:$pic/$picname.$ext";
+        `wget $picurl -O crawl/$crawlterm/$picname.$ext`;
+      }
+    }
+  }else{
+    print "Oops.. boo boo happened\n";
+  }
+}
+
+sub get_wotd_ub{
+  my $ublink = "http://www.urbandictionary.com/";
+  my $ubdata = `curl $ublink`;
+  print $ubdata;
+  my $word,$meaning;
+  if($ubdata =~ /\<div\s*?class=.word.\>(.*?)<\/div/igs){
+    $word = $1;
+    $word =~ s/\n//gs;
+    $word =~ s/\<.*?\>//sg;
+    print "!! MATCH $word || \n\n";
+  }else{
+    print "!! NO match\n\n";
+  }
+  if($ubdata =~ /\<div\s*?class=.meaning.\>(.*?)\<\/div/igs){
+    $meaning = $1;
+    $meaning =~ s/\n//s;
+    $meaning =~ s/\<.*?\>//sg;
+    print "!! MATCH $meaning || \n\n";
+  }else{
+    print "!! NO match\n\n";
+  }
+  return {"word"=>$word,"meaning"=>$meaning};
 }

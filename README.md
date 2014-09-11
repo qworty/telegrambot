@@ -3,6 +3,10 @@ telegrambot
 
 Bot for telegram-cli
 
+Current functionality is in reader.pl
+
+
+
 Needed:
 -------
 

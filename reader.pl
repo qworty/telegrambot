@@ -9,7 +9,7 @@ use JSON;
 use XML::Simple;
 use DBI;
 $|++;
-my $version = "v0.03";
+my $version = "v0.04";
 
 #TODO greymagenta[18:31] grey magentaTestgrey redredbUserredgrey changed title to Test2
 #rekening houden met groupnaam verandering
@@ -17,6 +17,9 @@ my $version = "v0.03";
 my $xml = new XML::Simple;
 my $xmlparse = $xml->XMLin("config.xml");
 my %db;
+#http://api.openweathermap.org/data/2.5/weather?q=$city&lang=nl&units=metric&APPID=$openWeatherMapApiKey
+$openWeatherMapApiKey = "";
+$defaultcity = "Amsterdam";
 $db{db} = $xmlparse->{database}{dbname};
 $db{host} = $xmlparse->{database}{host};
 $db{user} = $xmlparse->{database}{user};
@@ -208,7 +211,12 @@ READ: while(my $data = <$rh>){
         if($scraped){
           my $definition = $json->decode($scraped);
           if($definition->{definition}){
-            $wh->say("msg $msg->{receiver} BOT: $definition->{definition}") or die $!;
+            my $def = $definition->{definition};
+            my $randfile = time."-".rand(1000);
+            barf($randfile,"BOT: $def\n");
+            $wh->say("send_text $msg->{receiver} $randfile") or die $!;
+            sleep(1);
+            unlink($randfile);
           }else{
             $wh->say("msg $msg->{receiver} BOT: No results found.") or die $!;
           }
@@ -294,6 +302,23 @@ READ: while(my $data = <$rh>){
         else{
           $wh->say("msg $msg->{receiver} BOT: unknown format") or die $!;
         }
+      }
+    }
+    if($data =~ /!weather/i){
+      my $weather = {"cod"=>"404"};
+      my $searchterm = "Amsterdam";
+      if($data =~ /!weather\s(.*?)normal/i){
+        $searchterm = $1;
+        $weather = get_weather($searchterm);
+      }else{
+        $searchterm = $defaultcity;
+        $weather = get_weather($searchterm);
+      }
+      if($weather->{cod} == 200){
+        $wh->say("msg $msg->{receiver} BOT: $searchterm $weather->{weather}[0]{description} $weather->{main}{temp}C") or die $!;
+        print "BOT: $city $weather->{weather}[0]{description} $weather->{main}{temp}C";
+      }else{
+        $wh->say("msg $msg->{receiver} BOT: City '$searchterm' not found!") or die $!;
       }
     }
     if($data =~ /!wotd/i){
@@ -530,4 +555,12 @@ sub get_wotd_ub{
     print "!! NO match\n\n";
   }
   return {"word"=>$word,"meaning"=>$meaning};
+}
+
+sub get_weather{
+  my $city = shift;
+  my $craped = `curl -L "http://api.openweathermap.org/data/2.5/weather?q=$city&lang=nl&units=metric&APPID=$openWeatherMapApiKey"`;
+  my $weather = $json->decode($craped);
+  print Dumper $weather;
+  return $weather;
 }
